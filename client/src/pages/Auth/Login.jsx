@@ -2,12 +2,18 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Google from "../../assets/google-logo.png";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { useSelector, useDispatch } from "react-redux";
+import { loginThunk } from "../../store/authSlice";
 
 export default function Login() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const status = useSelector((state) => state.auth.status);
+  const error = useSelector((state) => state.auth.error);
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -23,24 +29,23 @@ export default function Login() {
     return newErrors;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
     }
-
-    if (
-      formData.email !== "nghiabd@gmail.com" ||
-      formData.password !== "123456"
-    ) {
-      setErrors({
-        general: "Email hoặc mật khẩu không chính xác, vui lòng thử lại",
-      });
-    } else {
-      setErrors({});
-      navigate("/");
+    setIsSubmitting(true);
+    try {
+      const resultAction = await dispatch(loginThunk(formData));
+      if (loginThunk.fulfilled.match(resultAction)) {
+        navigate("/");
+      } else {
+        setErrors({ general: resultAction.payload || "Đăng nhập thất bại" });
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -130,8 +135,8 @@ export default function Login() {
           {errors.password && (
             <p className="text-sm text-red-600 mt-2">{errors.password}</p>
           )}
-          {errors.general && (
-            <p className="text-sm text-red-600 mt-2">{errors.general}</p>
+          {(errors.general || error) && (
+            <p className="text-sm text-red-600 mt-2">{errors.general || error}</p>
           )}
         </div>
 
@@ -145,9 +150,14 @@ export default function Login() {
 
         <button
           type="submit"
-          className="w-full py-2 cursor-pointer bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition"
+          disabled={isSubmitting || status === 'loading'}
+          className={`w-full py-2 cursor-pointer rounded-lg font-medium transition ${
+            isSubmitting || status === 'loading'
+              ? "bg-gray-400 text-gray-700 cursor-not-allowed"
+              : "bg-black text-white hover:bg-gray-800"
+          }`}
         >
-          ĐĂNG NHẬP
+          {isSubmitting || status === 'loading' ? "Đang xử lý..." : "ĐĂNG NHẬP"}
         </button>
 
         <div className="text-center text-sm mt-5 text-gray-600">

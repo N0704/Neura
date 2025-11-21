@@ -2,17 +2,23 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Google from "../../assets/google-logo.png";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { useDispatch, useSelector } from "react-redux";
+import { registerThunk } from "../../store/authSlice";
 
 export default function Register() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const status = useSelector((state) => state.auth.status);
+  const error = useSelector((state) => state.auth.error);
   const [formData, setFormData] = useState({
-    name: "",
+    username: "",
     date: "",
     email: "",
     password: "",
   });
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -22,7 +28,8 @@ export default function Register() {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.name.trim()) newErrors.name = "Vui lòng nhập tên của bạn";
+    if (!formData.username.trim())
+      newErrors.username = "Vui lòng nhập tên người dùng";
     if (!formData.date.trim()) newErrors.date = "Vui lí nhập ngày sinh";
     if (!formData.email.trim()) newErrors.email = "Vui lòng nhập email";
     if (!formData.password.trim())
@@ -30,23 +37,35 @@ export default function Register() {
     return newErrors;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
     }
-
-    alert("Đăng ký thành công!");
-    navigate("/login");
+    setIsSubmitting(true);
+    try {
+      const resultAction = await dispatch(registerThunk({
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        date_of_birth: formData.date || null,
+      }));
+      if (registerThunk.fulfilled.match(resultAction)) {
+        navigate("/");
+      } else {
+        setErrors({ general: resultAction.payload || "Đăng ký thất bại" });
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="py-4">
       <div className="w-full max-w-md bg-white px-10 py-8 rounded-xl shadow-xl relative">
         <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-black to-gray-700 rounded-t-xl"></div>
-
         <div className="text-center mb-4">
           <h1 className="text-2xl font-semibold text-black mb-2">
             Tạo Tài Khoản Mới
@@ -56,7 +75,6 @@ export default function Register() {
             và kết nối với mọi người!
           </p>
         </div>
-
         <button
           type="button"
           className="w-full py-2 border border-gray-300 text-sm cursor-pointer bg-white rounded-lg hover:opacity-80 mb-4"
@@ -68,36 +86,33 @@ export default function Register() {
             </span>
           </div>
         </button>
-
         <div className="text-center text-xs text-gray-500 relative mb-3">
           <span className="absolute left-0 top-1/2 w-1/3 h-px bg-gray-300"></span>
           <span className="absolute right-0 top-1/2 w-1/3 h-px bg-gray-300"></span>
           Hoặc tạo tài khoản với
         </div>
-
         <form onSubmit={handleSubmit}>
           <div className="mb-5">
             <label
-              htmlFor="name"
+              htmlFor="username"
               className="block mb-2 text-gray-800 font-medium text-sm"
             >
-              Họ và tên
+              Tên người dùng
             </label>
             <input
-              id="name"
+              id="username"
               type="text"
-              value={formData.name}
+              value={formData.username}
               onChange={handleChange}
-              placeholder="Tên của bạn"
+              placeholder="Tên người dùng của bạn"
               className={`w-full px-4 text-sm py-2.5 border rounded focus:outline-none focus:ring-2 focus:ring-black ${
-                errors.name ? "border-red-400" : "border-gray-300"
+                errors.username ? "border-red-400" : "border-gray-300"
               }`}
             />
-            {errors.name && (
-              <p className="text-sm text-red-600 mt-1">{errors.name}</p>
+            {errors.username && (
+              <p className="text-sm text-red-600 mt-1">{errors.username}</p>
             )}
           </div>
-
           <div className="mb-5">
             <label
               htmlFor="date"
@@ -118,7 +133,6 @@ export default function Register() {
               <p className="text-sm text-red-600 mt-1">{errors.date}</p>
             )}
           </div>
-
           <div className="mb-5">
             <label
               htmlFor="email"
@@ -140,7 +154,6 @@ export default function Register() {
               <p className="text-sm text-red-600 mt-2">{errors.email}</p>
             )}
           </div>
-
           <div className="mb-5">
             <label
               htmlFor="password"
@@ -171,7 +184,6 @@ export default function Register() {
               <p className="text-sm text-red-600 mt-2">{errors.password}</p>
             )}
           </div>
-
           <div className="text-xs text-gray-800 mb-5">
             Bằng cách nhấp vào Đăng ký, bạn đồng ý với
             <span className="font-semibold cursor-pointer hover:underline ml-1">
@@ -187,14 +199,22 @@ export default function Register() {
             </span>{" "}
             của chúng tôi.
           </div>
-
           <button
             type="submit"
-            className="w-full py-2 cursor-pointer bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition"
+            disabled={isSubmitting || status === 'loading'}
+            className={`w-full py-2 cursor-pointer rounded-lg font-medium transition ${
+              isSubmitting || status === 'loading'
+                ? "bg-gray-400 text-gray-700 cursor-not-allowed"
+                : "bg-black text-white hover:bg-gray-800"
+            }`}
           >
-            ĐĂNG KÝ
+            {isSubmitting || status === 'loading' ? "Đang xử lý..." : "ĐĂNG KÝ"}
           </button>
-
+          {errors.general || error ? (
+            <p className="text-center text-sm text-red-600 mt-3">
+              {errors.general || error}
+            </p>
+          ) : null}
           <div className="text-center text-sm mt-5 text-gray-600">
             Bạn đã có tài khoản?{" "}
             <Link
