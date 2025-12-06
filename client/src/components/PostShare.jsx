@@ -2,10 +2,12 @@ import { useState } from "react";
 import { assets } from "../assets/assets";
 import { IoImageOutline, IoHappyOutline } from "react-icons/io5";
 import PostComposerModal from "./PostComposerModal.jsx";
+import { useSelector } from "react-redux";
 
 const PostShare = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [intent, setIntent] = useState(null);
+  const currentUser = useSelector((state) => state.auth.user);
 
   const openModal = (nextIntent = null) => {
     setIntent(nextIntent);
@@ -22,7 +24,7 @@ const PostShare = () => {
       <div className="flex flex-col gap-3 bg-white px-5 py-4 rounded-xl shadow-sm border border-gray-100">
         <div className="flex items-center gap-3">
           <img
-            src={assets.avatar}
+            src={currentUser?.avatar || assets.avatar}
             alt="avatar"
             className="rounded-full w-10 h-10 object-cover cursor-pointer"
           />

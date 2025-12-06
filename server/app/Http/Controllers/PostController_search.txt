@@ -1,0 +1,37 @@
+    /**
+     * Search posts
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $query = $request->input('q', '');
+        $perPage = $request->input('per_page', 20);
+
+        if (empty($query)) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+            ]);
+        }
+
+        $posts = Post::with([
+                'user:id,username,avatar',
+                'media',
+                'reactions',
+                'comments' => fn($q) => $q->latest()->with('user:id,username,avatar')
+            ])
+            ->withCount(['reactions', 'comments'])
+            ->where(function ($q) use ($query) {
+                $q->where('content', 'LIKE', "%{$query}%")
+                  ->orWhereHas('user', function ($userQuery) use ($query) {
+                      $userQuery->where('username', 'LIKE', "%{$query}%");
+                  });
+            })
+            ->where('privacy', 'public') // Only search public posts
+            ->latest()
+            ->paginate($perPage);
+
+        return response()->json([
+            'success' => true,
+            'data' => $posts,
+        ]);
+    }

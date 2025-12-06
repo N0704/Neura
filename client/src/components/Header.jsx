@@ -4,7 +4,7 @@ import { IoIosArrowDown, IoMdNotificationsOutline } from "react-icons/io";
 import { IoChatbubblesOutline, IoSearch } from "react-icons/io5";
 import { Link, useNavigate } from "react-router-dom";
 import SearchModal from "./SearchModal";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { logoutThunk } from "../store/authSlice";
 import { LuChevronRight } from "react-icons/lu";
 
@@ -14,6 +14,7 @@ const Header = () => {
   const profileMenuRef = useRef(null);
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const currentUser = useSelector((state) => state.auth.user);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -96,9 +97,9 @@ const Header = () => {
                 className="flex items-center cursor-pointer relative"
               >
                 <img
-                  src={assets.avatar}
+                  src={currentUser?.avatar || assets.avatar}
                   alt="avatar"
-                  className="w-11 h-11 rounded-full border border-gray-200 hover:opacity-90 transition"
+                  className="w-11 h-11 rounded-full border border-gray-200 hover:opacity-90 transition object-cover"
                 />
                 <div className="absolute right-0 bottom-0 bg-white rounded-full p-0.5">
                   <IoIosArrowDown
@@ -116,25 +117,25 @@ const Header = () => {
                     className="flex flex-col gap-2 items-center justify-center pt-2 pb-3"
                   >
                     <img
-                      src={assets.avatar}
+                      src={currentUser?.avatar || assets.avatar}
                       alt="avatar"
-                      className="w-12 h-12 rounded-full"
+                      className="w-12 h-12 rounded-full object-cover"
                     />
                     <div>
-                      <p className="font-semibold">Nghia Bui</p>
+                      <p className="font-semibold">{currentUser?.username || 'User'}</p>
                     </div>
                   </Link>
                   <ul className="flex flex-col bg-white rounded-xl">
                     {subMenus.map((item, index) => (
                       <li
                         key={index}
-                        className="p-4 w-full hover:bg-gray-100 cursor-pointer flex items-center justify-between"
+                        className="w-full hover:bg-gray-100 cursor-pointer flex items-center justify-between"
                       >
                         {item.name == "Đăng xuất" ? (
                           <button
                             onClick={handleLogout}
                             className="flex items-center gap-3
-                            text-[#595959] w-full h-full cursor-pointer"
+                            text-[#595959] p-4 w-full h-full cursor-pointer"
                           >
                             <item.icon className="w-5 h-5" />
                             <p className="font-medium">{item.name}</p>
@@ -143,17 +144,17 @@ const Header = () => {
                           <a
                             href={item.link || "#"}
                             className="flex items-center gap-3
-                            text-[#595959] w-full h-full"
+                            text-[#595959] p-4 w-full h-full"
                           >
                             <item.icon className="w-5 h-5" />
                             <p className="font-medium">{item.name}</p>
                           </a>
                         )}
                         {item.name === "Đăng xuất" ||
-                        item.name === "Đóng góp ý kiến" ? (
+                          item.name === "Đóng góp ý kiến" ? (
                           ""
                         ) : (
-                          <LuChevronRight className="w-5 h-5 text-[#595959]" />
+                          <LuChevronRight className="w-5 h-5 text-[#595959] mr-3" />
                         )}
                       </li>
                     ))}

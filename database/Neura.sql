@@ -24,6 +24,9 @@ CREATE TABLE posts (
     user_id INT NOT NULL,
     content TEXT NOT NULL,
     image VARCHAR(255),
+    background VARCHAR(100),
+    feeling VARCHAR(50),
+    privacy ENUM('public', 'friends', 'private') DEFAULT 'public',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -55,7 +58,18 @@ CREATE TABLE friends (
     status ENUM('pending','accepted','blocked') DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (friend_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (friend_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_friendship (user_id, friend_id)
+);
+
+CREATE TABLE follows (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    follower_id INT NOT NULL,
+    following_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (following_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_follow (follower_id, following_id)
 );
 
 CREATE TABLE messages (
@@ -71,8 +85,9 @@ CREATE TABLE messages (
 CREATE TABLE media (
     id INT PRIMARY KEY AUTO_INCREMENT,
     post_id INT NOT NULL,
-    file_url VARCHAR(255) NOT NULL,  -- link ảnh/video
+    file_url VARCHAR(255) NOT NULL,  -- link ảnh/video từ Cloudinary
     file_type ENUM('image', 'video') NOT NULL,
+    cloudinary_public_id VARCHAR(255),  -- Cloudinary public ID để quản lý xóa
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
 );

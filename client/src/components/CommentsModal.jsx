@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { toggleLike, sharePost, addComment } from "../store/postsSlice";
+import { toggleReaction, addComment } from "../store/postsSlice";
 import { IoCloseOutline } from "react-icons/io5";
 import { assets } from "../assets/assets";
 import { BiComment, BiLike, BiShare, BiSolidLike } from "react-icons/bi";
@@ -8,8 +8,8 @@ import { IoMdArrowDropdown } from "react-icons/io";
 
 const CommentsModal = ({ isOpen, onClose, postId }) => {
   const dispatch = useDispatch();
+  const currentUser = useSelector((state) => state.auth.user);
 
-  // ⭐ Lấy post mới nhất từ Redux
   const post = useSelector((state) =>
     state.posts.posts.find((p) => p.id === postId)
   );
@@ -30,12 +30,16 @@ const CommentsModal = ({ isOpen, onClose, postId }) => {
     commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [post?.comments]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
 
-    dispatch(addComment({ postId, commentText }));
-    setCommentText("");
+    try {
+      await dispatch(addComment({ postId, content: commentText })).unwrap();
+      setCommentText("");
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+    }
   };
 
   if (!isOpen || !post) return null;
@@ -65,12 +69,12 @@ const CommentsModal = ({ isOpen, onClose, postId }) => {
             <div className="flex items-center gap-3">
               <img
                 src={post.user.avatar}
-                alt={post.user.name}
+                alt={post.user.username}
                 className="w-10 h-10 rounded-full object-cover"
               />
               <div className="flex-1">
                 <p className="text-sm font-semibold text-gray-900">
-                  {post.user.name}
+                  {post.user.username}
                 </p>
                 <p className="text-xs text-gray-500">{post.time}</p>
               </div>
@@ -82,47 +86,74 @@ const CommentsModal = ({ isOpen, onClose, postId }) => {
               </p>
             )}
 
-            {post.image && (
+            {post.media_urls && post.media_urls.length > 0 && (
               <div className="rounded-lg overflow-hidden bg-gray-100 mb-1">
                 <img
-                  src={post.image}
+                  src={post.media_urls[0].url}
                   alt=""
-                  className="w-full max-h-[60vh] object-contain"
+                  className="w-full max-h-[60vh] object-cover"
                 />
               </div>
             )}
 
             {/* Stats */}
-            <div className="flex items-center justify-between text-sm text-[#65686C] px-1.5 pt-3">
-              <span>{post.reactions_count} lượt thích</span>
+            <div className="flex items-center justify-between text-sm text-[#65686C] pt-3">
+
+              {/* Likes */}
+              {post.reactions_count > 0 && (
+                <button className="hover:underline cursor-pointer">
+                  {post.reactions_count} lượt thích
+                </button>
+              )}
+
               <div className="flex items-center gap-4">
-                <span>{post.comments_count} bình luận</span>
-                <span>{post.shares_count} chia sẻ</span>
+
+                {/* Comments */}
+                {post.comments_count > 0 && (
+                  <span className="hover:underline cursor-pointer">
+                    {post.comments_count} bình luận
+                  </span>
+                )}
+
+                {/* Shares */}
+                {post.shares_count > 0 && (
+                  <button className="hover:underline cursor-pointer">
+                    {post.shares_count} lượt chia sẻ
+                  </button>
+                )}
+
               </div>
             </div>
+
 
             {/* Actions */}
             <div className="grid grid-cols-3 text-sm font-medium text-[#65686C] pt-2">
               <button
-                onClick={() => dispatch(toggleLike(post.id))}
-                className={`py-2 flex items-center justify-center gap-2 rounded-lg hover:bg-gray-100 ${
-                  post.liked ? "text-blue-600" : ""
-                }`}
+                onClick={() => dispatch(toggleReaction({ postId: post.id, type: 'like' }))}
+                className={`py-2 flex items-center justify-center gap-2 rounded-lg hover:bg-gray-100 transition cursor-pointer ${post.user_reaction?.liked ? "text-gray-900" : ""
+                  }`}
               >
-                {post.liked ? <BiSolidLike size={20} /> : <BiLike size={20} />}
+                {post.user_reaction?.liked ? (
+                  <BiSolidLike size={20} className="mb-0.5" />
+                ) : (
+                  <BiLike size={20} className="mb-0.5" />
+                )}
                 Thích
               </button>
 
-              <button className="py-2 flex items-center justify-center gap-2 rounded-lg hover:bg-gray-100">
+              <button
+                onClick={() => inputRef.current?.focus()}
+                className="py-2 flex items-center justify-center gap-2 rounded-lg hover:bg-gray-100 transition cursor-pointer"
+              >
                 <BiComment size={20} />
                 Bình luận
               </button>
 
               <button
-                onClick={() => dispatch(sharePost(post.id))}
-                className="py-2 flex items-center justify-center gap-2 rounded-lg hover:bg-gray-100"
+                onClick={() => alert('Chức năng chia sẻ đang phát triển')}
+                className="py-2 flex items-center justify-center gap-2 rounded-lg hover:bg-gray-100 transition cursor-pointer"
               >
-                <BiShare size={20} className="-scale-x-100" />
+                <BiShare size={20} className="transform -scale-x-100" />
                 Chia sẻ
               </button>
             </div>
@@ -139,16 +170,16 @@ const CommentsModal = ({ isOpen, onClose, postId }) => {
                 <div key={comment.id} className="flex items-start gap-3">
                   <img
                     src={comment.user.avatar}
-                    alt={comment.user.name}
+                    alt={comment.user.username}
                     className="w-8 h-8 rounded-full object-cover"
                   />
 
                   <div>
                     <div className="bg-gray-100 rounded-2xl px-4 py-2 inline-block">
                       <p className="text-sm font-semibold text-gray-900">
-                        {comment.user.name}
+                        {comment.user.username}
                       </p>
-                      <p className="text-sm text-gray-800">{comment.text}</p>
+                      <p className="text-sm text-gray-800">{comment.content}</p>
                     </div>
 
                     <div className="flex items-center gap-4 mt-1 ml-2">
@@ -179,7 +210,7 @@ const CommentsModal = ({ isOpen, onClose, postId }) => {
         <div className="bg-white px-6 py-4 border-t border-gray-100">
           <form onSubmit={handleSubmit} className="flex items-center gap-3">
             <img
-              src={assets.avatar}
+              src={currentUser?.avatar || assets.avatar}
               alt="avatar"
               className="w-8 h-8 rounded-full object-cover"
             />
@@ -196,11 +227,10 @@ const CommentsModal = ({ isOpen, onClose, postId }) => {
             <button
               type="submit"
               disabled={!commentText.trim()}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold ${
-                commentText.trim()
-                  ? "bg-gray-900 text-white hover:bg-gray-700"
-                  : "bg-gray-200 text-gray-400"
-              }`}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer ${commentText.trim()
+                ? "bg-gray-900 text-white hover:bg-gray-700"
+                : "bg-gray-200 text-gray-400"
+                }`}
             >
               Đăng
             </button>

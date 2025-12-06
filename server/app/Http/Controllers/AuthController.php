@@ -26,6 +26,7 @@ class AuthController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'date_of_birth' => $validated['date_of_birth'] ?? null,
+            'avatar' => 'https://res.cloudinary.com/dxk5awt0e/image/upload/v1765006791/neura/media/fymfft2fxgervxejiuay.jpg',
         ]);
 
         $token = $this->issueToken($user, $request);

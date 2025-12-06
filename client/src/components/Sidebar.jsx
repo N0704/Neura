@@ -2,12 +2,14 @@ import React, { useState } from "react";
 import { menuItems } from "../assets/assets";
 import { IoClose } from "react-icons/io5";
 import { NavLink } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import PostComposerModal from "./PostComposerModal";
 
 const Sidebar = () => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [intent, setIntent] = useState(null);
+  const currentUser = useSelector((state) => state.auth.user);
 
   const openModal = (item, nextIntent = null) => {
     setSelectedItem(item);
@@ -57,13 +59,13 @@ const Sidebar = () => {
           <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
             <button
               onClick={closeModal}
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 transition"
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-100 text-gray-800 hover:bg-gray-200 transition cursor-pointer"
             >
               Hủy
             </button>
             <button
               onClick={closeModal}
-              className="px-4 py-2 text-sm font-semibold rounded-lg bg-gray-900 text-white hover:bg-gray-700 transition"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-gray-900 text-white hover:bg-gray-700 transition cursor-pointer"
             >
               Đóng
             </button>
@@ -79,50 +81,54 @@ const Sidebar = () => {
 
       {/* Menu */}
       <div className="flex flex-col gap-0.5 mb-3">
-        {menuItems.map((item) =>
-          item.to === null ? (
+        {menuItems.map((item) => {
+          // Override avatar for Profile item
+          const displayItem = item.label === "Hồ sơ"
+            ? { ...item, image: currentUser?.avatar || item.image }
+            : item;
+
+          return displayItem.to === null ? (
             // Items mở modal
             <button
-              key={item.label}
-              onClick={() => openModal(item)}
+              key={displayItem.label}
+              onClick={() => openModal(displayItem)}
               className="flex items-center gap-3.5 rounded-xl p-3 hover:bg-gray-100 transition w-full text-left cursor-pointer"
             >
-              {item.icon ? (
-                <item.icon size={24} className="text-gray-600" />
+              {displayItem.icon ? (
+                <displayItem.icon size={24} className="text-gray-600" />
               ) : (
                 <img
-                  src={item.image}
-                  alt={item.label}
-                  className="w-6 h-6 rounded-full"
+                  src={displayItem.image}
+                  alt={displayItem.label}
+                  className="w-6 h-6 rounded-full object-cover"
                 />
               )}
-              <p>{item.label}</p>
+              <p>{displayItem.label}</p>
             </button>
           ) : (
             // Items có link
             <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === "/"}
+              key={displayItem.to}
+              to={displayItem.to}
+              end={displayItem.to === "/"}
               className={({ isActive }) =>
-                `flex items-center gap-3.5 rounded-xl p-3 transition ${
-                  isActive ? "bg-gray-100" : "hover:bg-gray-100"
+                `flex items-center gap-3.5 rounded-xl p-3 transition ${isActive ? "bg-gray-100" : "hover:bg-gray-100"
                 }`
               }
             >
-              {item.icon ? (
-                <item.icon size={24} className="text-gray-600" />
+              {displayItem.icon ? (
+                <displayItem.icon size={24} className="text-gray-600" />
               ) : (
                 <img
-                  src={item.image}
-                  alt={item.label}
-                  className="w-6 h-6 rounded-full"
+                  src={displayItem.image}
+                  alt={displayItem.label}
+                  className="w-6 h-6 rounded-full object-cover"
                 />
               )}
-              <p>{item.label}</p>
+              <p>{displayItem.label}</p>
             </NavLink>
-          )
-        )}
+          );
+        })}
       </div>
 
       {/* Đăng tin */}

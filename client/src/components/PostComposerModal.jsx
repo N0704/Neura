@@ -11,11 +11,12 @@ import {
   IoPricetagOutline,
   IoPersonAddOutline,
 } from "react-icons/io5";
-import { useDispatch } from "react-redux";
-import { addPost } from "../store/postsSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { createPost } from "../store/postsSlice";
 import { assets } from "../assets/assets";
 import FeelingModal from "./FeelingModal.jsx";
 import { Link } from "react-router-dom";
+import { useCloudinaryUpload } from "../hooks/useCloudinaryUpload";
 
 const audienceOptions = [
   {
@@ -51,15 +52,21 @@ const backgrounds = [
 
 const PostComposerModal = ({ isOpen, onClose, intent }) => {
   const dispatch = useDispatch();
+  const currentUser = useSelector((state) => state.auth.user);
   const [content, setContent] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [privacy, setPrivacy] = useState(audienceOptions[0]);
   const [showPrivacyMenu, setShowPrivacyMenu] = useState(false);
   const [selectedBackground, setSelectedBackground] = useState(null);
   const [feelingModalOpen, setFeelingModalOpen] = useState(false);
   const [selectedFeeling, setSelectedFeeling] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  // Cloudinary upload hook
+  const { uploadFileWithProgress, uploading, progress, error: uploadError } = useCloudinaryUpload();
 
   useEffect(() => {
     if (!isOpen) {
@@ -68,11 +75,13 @@ const PostComposerModal = ({ isOpen, onClose, intent }) => {
         setImagePreview(null);
       }
       setContent("");
+      setSelectedFile(null);
       setSelectedBackground(null);
       setSelectedFeeling(null);
       setPrivacy(audienceOptions[0]);
       setFeelingModalOpen(false);
       setShowPrivacyMenu(false);
+      setIsSubmitting(false);
     }
   }, [isOpen, imagePreview]);
 
@@ -101,11 +110,14 @@ const PostComposerModal = ({ isOpen, onClose, intent }) => {
   const handleImageChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
     if (imagePreview) {
       URL.revokeObjectURL(imagePreview);
     }
+
     const previewUrl = URL.createObjectURL(file);
     setImagePreview(previewUrl);
+    setSelectedFile(file);
   };
 
   const handleRemoveImage = () => {
@@ -113,6 +125,7 @@ const PostComposerModal = ({ isOpen, onClose, intent }) => {
       URL.revokeObjectURL(imagePreview);
     }
     setImagePreview(null);
+    setSelectedFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -122,24 +135,57 @@ const PostComposerModal = ({ isOpen, onClose, intent }) => {
   const canPost =
     content.trim().length > 0 || Boolean(imagePreview) || selectedFeeling;
 
-  const handleSubmit = () => {
-    if (!canPost) return;
-    dispatch(addPost({
-      content,
-      image: imagePreview,
-      background: selectedBackground?.className || null,
-      feeling: selectedFeeling,
-      privacy,
-    }));
-    setContent("");
-    setSelectedFeeling(null);
-    if (!backgroundDisabled) {
-      setSelectedBackground(null);
+  const handleSubmit = async () => {
+    if (!canPost || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // Prepare post data
+      const postData = {
+        content: content.trim() || ' ',
+        background: selectedBackground?.className || null,
+        feeling: selectedFeeling,
+        privacy: privacy.value,
+      };
+
+      // Upload file to Cloudinary if exists
+      if (selectedFile) {
+        try {
+          const uploadResult = await uploadFileWithProgress(selectedFile, {
+            folder: 'neura/media',
+            tags: ['post', 'user_upload']
+          });
+
+          // Add Cloudinary media info to post data
+          postData.media_url = uploadResult.url;
+          postData.media_public_id = uploadResult.public_id;
+          postData.media_type = uploadResult.type;
+        } catch (uploadErr) {
+          throw new Error(`Upload failed: ${uploadErr.message}`);
+        }
+      }
+
+      // Dispatch async thunk to create post
+      await dispatch(createPost(postData)).unwrap();
+
+      // Clear form on success
+      setContent("");
+      setSelectedFeeling(null);
+      if (!backgroundDisabled) {
+        setSelectedBackground(null);
+      }
+      if (imagePreview) {
+        handleRemoveImage();
+      }
+      setIsSubmitting(false);
+      onClose();
+    } catch (error) {
+      console.error('Failed to create post:', error);
+      const errorMessage = error?.message || error || 'Không thể đăng bài viết';
+      alert(errorMessage);
+      setIsSubmitting(false);
     }
-    if (imagePreview) {
-      handleRemoveImage();
-    }
-    onClose();
   };
 
   const handleOverlayClick = (event) => {
@@ -163,9 +209,8 @@ const PostComposerModal = ({ isOpen, onClose, intent }) => {
                 setPrivacy(option);
                 setShowPrivacyMenu(false);
               }}
-              className={`w-full text-left px-3 py-2 rounded-lg flex gap-3 items-start hover:bg-gray-50 cursor-pointer ${
-                isActive ? "bg-gray-50" : ""
-              }`}
+              className={`w-full text-left px-3 py-2 rounded-lg flex gap-3 items-start hover:bg-gray-50 cursor-pointer ${isActive ? "bg-gray-50" : ""
+                }`}
             >
               <Icon className="mt-0.5 text-gray-600" size={option.size} />
               <div>
@@ -205,12 +250,12 @@ const PostComposerModal = ({ isOpen, onClose, intent }) => {
         <div className="px-6 py-5 space-y-4 overflow-y-auto">
           <div className="flex items-center gap-3">
             <img
-              src={assets.avatar}
+              src={currentUser?.avatar || assets.avatar}
               alt="avatar"
               className="w-10 h-10 rounded-full object-cover"
             />
             <div className="flex flex-col">
-              <Link to="/profile" className="text-sm font-semibold text-gray-900 cursor-pointer hover:underline">Nghia Bui</Link>
+              <Link to="/profile" className="text-sm font-semibold text-gray-900 cursor-pointer hover:underline">{currentUser?.username || 'User'}</Link>
               <div className="relative">
                 <button
                   type="button"
@@ -218,18 +263,17 @@ const PostComposerModal = ({ isOpen, onClose, intent }) => {
                   className="mt-1 flex items-center gap-1 text-xs font-medium text-gray-600 bg-gray-100 px-2.5 py-1 rounded-xl cursor-pointer"
                 >
                   {privacy.label}
-                  <IoChevronDownOutline size={13}/>
+                  <IoChevronDownOutline size={13} />
                 </button>
                 {renderPrivacyMenu()}
               </div>
             </div>
           </div>
           <div
-            className={`rounded-2xl ${
-              selectedBackground?.className
-                ? `${selectedBackground.className} text-white`
-                : ""
-            }`}
+            className={`rounded-2xl ${selectedBackground?.className
+              ? `${selectedBackground.className} text-white`
+              : ""
+              }`}
           >
             <textarea
               ref={textareaRef}
@@ -241,16 +285,14 @@ const PostComposerModal = ({ isOpen, onClose, intent }) => {
                   : "Bạn đang nghĩ gì?"
               }
               maxLength={1000}
-              className={`w-full ${
-                selectedBackground
-                  ? "min-h-[200px] text-2xl text-center font-semibold leading-tight placeholder:text-white/60 px-6 py-10"
-                  : "min-h-[120px] text-lg text-gray-900 px-1 py-2"
-              } bg-transparent resize-none border-none focus:ring-0 focus:outline-none placeholder:text-gray-400 whitespace-pre-line`}
+              className={`w-full ${selectedBackground
+                ? "min-h-[40px] text-2xl text-center font-semibold leading-tight placeholder:text-white/60 px-6 py-10"
+                : "min-h-[40px] text-lg text-gray-900 px-1 py-2"
+                } bg-transparent resize-none border-none focus:ring-0 focus:outline-none placeholder:text-gray-400 whitespace-pre-line`}
             />
             <div
-              className={`flex justify-end text-xs ${
-                selectedBackground ? "text-white/80 pr-6 pb-4" : "text-gray-400"
-              }`}
+              className={`flex justify-end text-xs ${selectedBackground ? "text-white/80 pr-6 pb-4" : "text-gray-400"
+                }`}
             >
               {content.length}/1000
             </div>
@@ -295,9 +337,8 @@ const PostComposerModal = ({ isOpen, onClose, intent }) => {
                 <button
                   type="button"
                   onClick={() => setSelectedBackground(null)}
-                  className={`w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-xs font-semibold cursor-pointer ${
-                    !selectedBackground ? "ring-2 ring-gray-500" : ""
-                  }`}
+                  className={`w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-xs font-semibold cursor-pointer ${!selectedBackground ? "ring-2 ring-gray-500" : ""
+                    }`}
                 >
                   Aa
                 </button>
@@ -305,11 +346,10 @@ const PostComposerModal = ({ isOpen, onClose, intent }) => {
                   <button
                     key={bg.id}
                     type="button"
-                    className={`w-10 h-10 rounded-full cursor-pointer ${bg.className} ${
-                      selectedBackground?.id === bg.id
-                        ? "ring-2 ring-offset-2 ring-blue-500"
-                        : ""
-                    }`}
+                    className={`w-10 h-10 rounded-full cursor-pointer ${bg.className} ${selectedBackground?.id === bg.id
+                      ? "ring-2 ring-offset-2 ring-blue-500"
+                      : ""
+                      }`}
                     onClick={() => setSelectedBackground(bg)}
                   />
                 ))}
@@ -364,11 +404,10 @@ const PostComposerModal = ({ isOpen, onClose, intent }) => {
             type="button"
             onClick={handleSubmit}
             disabled={!canPost}
-            className={`w-full py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer ${
-              canPost
-                ? "bg-gray-900 text-white hover:bg-gray-700"
-                : "bg-gray-100 text-gray-400"
-            }`}
+            className={`w-full py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer ${canPost
+              ? "bg-gray-900 text-white hover:bg-gray-700"
+              : "bg-gray-100 text-gray-400"
+              }`}
           >
             Đăng
           </button>

@@ -53,7 +53,6 @@ const ProfileFriends = () => {
               <p className="text-base font-semibold text-gray-900 truncate">
                 {friend.name}
               </p>
-              <p className="text-sm text-gray-500">10 bạn chung (demo)</p>
             </div>
           </button>
         ))}
