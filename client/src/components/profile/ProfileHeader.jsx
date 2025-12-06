@@ -1,18 +1,23 @@
 import React from "react";
 import { assets } from "../../assets/assets";
 import { PROFILE_TABS } from "../../constants/profileTabs";
+import FriendButton from "../FriendButton";
+import MessageButton from "../MessageButton";
 
 const ProfileHeader = ({
   activeTab,
   onTabChange,
   onEditProfile,
-  name = "Nghia Bui",
-  subtitle = "1.2K bạn bè · UI/UX & Frontend Developer",
+  name = "",
+  subtitle = "",
+  isOwnProfile = true,
+  userId,
+  avatar,
 }) => {
   return (
-    <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <section className="bg-white rounded-xl shadow-sm border border-gray-100">
       {/* Cover */}
-      <div className="h-56 w-full bg-linear-to-r from-gray-600 via-gray-500 to-gray-400" />
+      <div className="h-56 w-full bg-linear-to-r from-gray-600 via-gray-500 to-gray-400 rounded-t-xl overflow-hidden" />
 
       {/* Avatar + Info + Actions */}
       <div className="px-6 pt-1 pb-4">
@@ -20,7 +25,7 @@ const ProfileHeader = ({
           <div className="flex items-end gap-4">
             <div className="relative">
               <img
-                src={assets.avatar}
+                src={avatar || assets.avatar}
                 alt="Avatar"
                 className="w-32 h-32 rounded-full border-4 border-white shadow-sm object-cover bg-white"
               />
@@ -32,15 +37,24 @@ const ProfileHeader = ({
           </div>
 
           <div className="flex items-center gap-2 pb-2">
-            <button
-              className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 transition cursor-pointer"
-              onClick={() => onEditProfile?.()}
-            >
-              Chỉnh sửa trang cá nhân
-            </button>
-            <button className="px-4 py-2 rounded-lg bg-gray-100 text-sm font-medium text-gray-800 hover:bg-gray-200 transition cursor-pointer">
-              Xem với tư cách khác
-            </button>
+            {isOwnProfile ? (
+              <>
+                <button
+                  className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 transition cursor-pointer"
+                  onClick={() => onEditProfile?.()}
+                >
+                  Chỉnh sửa trang cá nhân
+                </button>
+                <button className="px-4 py-2 rounded-lg bg-gray-100 text-sm font-medium text-gray-800 hover:bg-gray-200 transition cursor-pointer">
+                  Xem với tư cách khác
+                </button>
+              </>
+            ) : (
+              <>
+                <FriendButton userId={userId} />
+                <MessageButton userId={userId} />
+              </>
+            )}
           </div>
         </div>
 
@@ -54,11 +68,10 @@ const ProfileHeader = ({
                   key={tab}
                   type="button"
                   onClick={() => onTabChange?.(tab)}
-                  className={`px-4 py-3 my-0.5 text-sm font-medium transition-colors duration-150 cursor-pointer ${
-                    isActive
-                      ? "text-gray-900 border-b-2 border-gray-900"
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
+                  className={`px-4 py-3 my-0.5 text-sm font-medium transition-colors duration-150 cursor-pointer ${isActive
+                    ? "text-gray-900 border-b-2 border-gray-900"
+                    : "text-gray-600 hover:bg-gray-50"
+                    }`}
                 >
                   {tab}
                 </button>
