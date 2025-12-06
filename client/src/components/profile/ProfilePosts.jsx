@@ -1,41 +1,32 @@
-import React, { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
-import { postsAPI } from "../../api/postsAPI";
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchUserPosts, clearUserPosts } from "../../store/postsSlice";
 import PostShare from "../PostShare";
 import PostCard from "../PostCard";
 import PostSkeleton from "../PostSkeleton";
 
 const ProfilePosts = ({ userId }) => {
+  const dispatch = useDispatch();
   const currentUser = useSelector((state) => state.auth.user);
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { userPosts: posts, loading } = useSelector((state) => state.posts);
   const isOwnProfile = !userId || (currentUser && userId == currentUser.id);
 
   useEffect(() => {
-    const fetchUserPosts = async () => {
-      const targetUserId = userId || currentUser?.id;
-      if (!targetUserId) return;
+    const targetUserId = userId || currentUser?.id;
+    if (targetUserId) {
+      dispatch(fetchUserPosts({ userId: targetUserId }));
+    }
 
-      try {
-        setLoading(true);
-        const response = await postsAPI.getUserPosts(targetUserId);
-        // response.data is the paginator object, response.data.data is the posts array
-        setPosts(response.data?.data || []);
-      } catch (error) {
-        console.error("Error fetching user posts:", error);
-      } finally {
-        setLoading(false);
-      }
+    return () => {
+      dispatch(clearUserPosts());
     };
-
-    fetchUserPosts();
-  }, [userId, currentUser?.id]);
+  }, [userId, currentUser?.id, dispatch]);
 
   return (
     <div className="space-y-4">
       {isOwnProfile && <PostShare />}
 
-      {loading ? (
+      {loading && posts.length === 0 ? (
         <>
           <PostSkeleton />
           <PostSkeleton />
@@ -52,5 +43,3 @@ const ProfilePosts = ({ userId }) => {
 };
 
 export default ProfilePosts;
-
-

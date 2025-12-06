@@ -4,7 +4,21 @@ import { toggleReaction, addComment } from "../store/postsSlice";
 import { IoCloseOutline } from "react-icons/io5";
 import { assets } from "../assets/assets";
 import { BiComment, BiLike, BiShare, BiSolidLike } from "react-icons/bi";
+import { IoEarth, IoPeople, IoLockClosed } from "react-icons/io5";
 import { IoMdArrowDropdown } from "react-icons/io";
+import { formatDistanceToNow } from "date-fns";
+import { vi } from "date-fns/locale";
+
+const formatTimeAgo = (date) => {
+  const timeString = formatDistanceToNow(new Date(date), { addSuffix: true, locale: vi });
+  return timeString.replace('khoảng ', '');
+};
+
+const privacyIcons = {
+  public: { icon: IoEarth, label: "Công khai" },
+  friends: { icon: IoPeople, label: "Bạn bè" },
+  private: { icon: IoLockClosed, label: "Chỉ mình tôi" },
+};
 
 const CommentsModal = ({ isOpen, onClose, postId }) => {
   const dispatch = useDispatch();
@@ -44,6 +58,9 @@ const CommentsModal = ({ isOpen, onClose, postId }) => {
 
   if (!isOpen || !post) return null;
 
+  const privacy = privacyIcons[post.privacy] || privacyIcons.public;
+  const PrivacyIcon = privacy.icon;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
@@ -70,20 +87,45 @@ const CommentsModal = ({ isOpen, onClose, postId }) => {
               <img
                 src={post.user.avatar}
                 alt={post.user.username}
-                className="w-10 h-10 rounded-full object-cover"
+                className="w-10 h-10 rounded-full object-cover shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
               />
               <div className="flex-1">
-                <p className="text-sm font-semibold text-gray-900">
-                  {post.user.username}
+                <div className="flex items-center gap-1">
+                  <p className="text-base font-semibold text-gray-900 hover:underline cursor-pointer">
+                    {post.user.username}
+                  </p>
+                  {post.feeling && (
+                    <p className="text-[15px] text-gray-600 font-medium">
+                      đang cảm thấy {post.feeling}
+                    </p>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  {formatTimeAgo(post.created_at)}
+                  <span className="text-gray-400">·</span>
+                  <PrivacyIcon size={12} />
+                  <span className="mb-0.5">
+                    {post.privacyLabel || privacy.label}
+                  </span>
                 </p>
-                <p className="text-xs text-gray-500">{post.time}</p>
               </div>
             </div>
 
-            {post.content && (
-              <p className="my-3 text-sm text-gray-800 whitespace-pre-line">
+            {post.background ? (
+              <div
+                className={`rounded-2xl px-6 py-36 text-center mt-4 mb-1 text-white text-2xl font-semibold leading-tight tracking-wide whitespace-pre-line ${post.background}`}
+              >
                 {post.content}
-              </p>
+              </div>
+            ) : (
+              <>
+                <p
+                  className={`text-gray-800 leading-relaxed px-1 whitespace-pre-line ${post.image ? "text-base py-4" : "text-base py-3"
+                    }`}
+                >
+                  {post.content}
+                </p>
+              </>
             )}
 
             {post.media_urls && post.media_urls.length > 0 && (
@@ -100,11 +142,13 @@ const CommentsModal = ({ isOpen, onClose, postId }) => {
             <div className="flex items-center justify-between text-sm text-[#65686C] pt-3">
 
               {/* Likes */}
-              {post.reactions_count > 0 && (
-                <button className="hover:underline cursor-pointer">
-                  {post.reactions_count} lượt thích
-                </button>
-              )}
+              <div>
+                {post.reactions_count > 0 && (
+                  <button className="hover:underline cursor-pointer">
+                    {post.reactions_count} lượt thích
+                  </button>
+                )}
+              </div>
 
               <div className="flex items-center gap-4">
 

@@ -57,10 +57,23 @@ export const addComment = createAsyncThunk(
   }
 );
 
+export const fetchUserPosts = createAsyncThunk(
+  'posts/fetchUserPosts',
+  async ({ userId, page = 1 } = {}, { rejectWithValue }) => {
+    try {
+      const response = await postsAPI.getUserPosts(userId, page);
+      return response.data; // response.data is the paginator object
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Không thể tải bài viết người dùng');
+    }
+  }
+);
+
 const postsSlice = createSlice({
   name: "posts",
   initialState: {
     posts: [],
+    userPosts: [], // Store posts for specific user profile
     loading: false,
     error: null,
     currentPage: 1,
@@ -70,10 +83,13 @@ const postsSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    clearUserPosts: (state) => {
+      state.userPosts = [];
+    }
   },
   extraReducers: (builder) => {
     builder
-      // Fetch posts
+      // Fetch posts (Feed)
       .addCase(fetchPosts.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -89,6 +105,21 @@ const postsSlice = createSlice({
         state.error = action.payload;
       })
 
+      // Fetch user posts (Profile)
+      .addCase(fetchUserPosts.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchUserPosts.fulfilled, (state, action) => {
+        state.loading = false;
+        // Handle pagination data if present
+        state.userPosts = action.payload.data || action.payload;
+      })
+      .addCase(fetchUserPosts.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
       // Create post
       .addCase(createPost.pending, (state) => {
         state.loading = true;
@@ -97,6 +128,8 @@ const postsSlice = createSlice({
       .addCase(createPost.fulfilled, (state, action) => {
         state.loading = false;
         state.posts.unshift(action.payload);
+        // Also add to userPosts if it's the current user's profile
+        state.userPosts.unshift(action.payload);
       })
       .addCase(createPost.rejected, (state, action) => {
         state.loading = false;
@@ -105,25 +138,41 @@ const postsSlice = createSlice({
 
       // Toggle reaction
       .addCase(toggleReaction.fulfilled, (state, action) => {
+        // Update in main feed
         const post = state.posts.find(p => p.id === action.payload.postId);
         if (post) {
-          // Update from server response
           post.reactions_count = action.payload.reactions_count;
           post.user_reaction = action.payload.user_reaction;
+        }
+
+        // Update in user profile posts
+        const userPost = state.userPosts.find(p => p.id === action.payload.postId);
+        if (userPost) {
+          userPost.reactions_count = action.payload.reactions_count;
+          userPost.user_reaction = action.payload.user_reaction;
         }
       })
 
       // Add comment
       .addCase(addComment.fulfilled, (state, action) => {
+        // Update in main feed
         const post = state.posts.find(p => p.id === action.payload.postId);
         if (post) {
           if (!post.comments) post.comments = [];
           post.comments.push(action.payload.comment);
           post.comments_count = action.payload.comments_count;
         }
+
+        // Update in user profile posts
+        const userPost = state.userPosts.find(p => p.id === action.payload.postId);
+        if (userPost) {
+          if (!userPost.comments) userPost.comments = [];
+          userPost.comments.push(action.payload.comment);
+          userPost.comments_count = action.payload.comments_count;
+        }
       });
   },
 });
 
-export const { clearError } = postsSlice.actions;
+export const { clearError, clearUserPosts } = postsSlice.actions;
 export default postsSlice.reducer;
